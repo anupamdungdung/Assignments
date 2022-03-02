@@ -80,7 +80,11 @@ export const sendRequest = async (req, res) => {
           });
           res.status(200).json("Friend request sent!");
         } else {
-          res.status(403).json("You have already sent a request to this user or you are already friends!");
+          res
+            .status(403)
+            .json(
+              "You have already sent a request to this user or you are already friends!"
+            );
         }
       }
     } catch (err) {
@@ -156,4 +160,64 @@ export const acceptRequest = async (req, res) => {
   }
 };
 //Reject a friend request
-export const rejectRequest = async (req, res) => {};
+export const rejectRequest = async (req, res) => {
+  const { userId } = req.body;
+  if (userId !== req.params.id) {
+    try {
+      const user = await User.findById(req.params.id); //The one whose request we have to reject
+      const currentUser = await User.findById(userId); //The one who is rejecting the request
+      if (!user || !currentUser) {
+        res.status(404).json("User not found");
+      } else {
+        if (currentUser.friendRequestsReceived.includes(req.params.id)) {
+          //Pull the ids from the friend requests sent and received
+          await currentUser.updateOne({
+            $pull: { friendRequestsReceived: req.params.id }, //Friend request rejected
+          });
+          await user.updateOne({
+            $pull: { friendRequestsSent: userId }, //Friend request rejected
+          });
+
+          res.status(200).json("Friend request rejected!");
+        } else {
+          res.status(403).json("No request to accept!");
+        }
+      }
+    } catch (err) {
+      res.status(500).json(err);
+    }
+  } else {
+    res.status(403).json("You can't reject a request to yourself!");
+  }
+};
+//Unfriend
+export const unfriend = async (req, res) => {
+  const { userId } = req.body;
+  if (userId !== req.params.id) {
+    try {
+      const user = await User.findById(req.params.id); //The one whom we have to unfriend
+      const currentUser = await User.findById(userId); //The one who is unfriending
+      if (!user || !currentUser) {
+        res.status(404).json("User not found");
+      } else {
+        if (currentUser.friends.includes(req.params.id)) {
+          //Pull the ids from the friend requests sent and received
+          await currentUser.updateOne({
+            $pull: { friends: req.params.id }, //Friend request rejected
+          });
+          await user.updateOne({
+            $pull: { friends: userId }, //Friend request rejected
+          });
+
+          res.status(200).json("Unfriend request successful!");
+        } else {
+          res.status(403).json("You are not friends!");
+        }
+      }
+    } catch (err) {
+      res.status(500).json(err);
+    }
+  } else {
+    res.status(403).json("You can't unfriend yourself!");
+  }
+};
